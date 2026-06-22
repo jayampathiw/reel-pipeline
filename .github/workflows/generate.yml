@@ -1,0 +1,87 @@
+name: Generate Reel
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Channel slug (wild-eye, sports, cartoon)'
+        required: true
+        default: 'wild-eye'
+      content_id:
+        description: 'Force a specific content_items.id (optional — leave blank to pick oldest brief)'
+        required: false
+
+  schedule:
+    # Wild Eye — posting slots (UTC = BST - 1)
+    - cron: '0 22 * * 5'    # Fri 22:00 UTC = Fri 23:00 BST  → 11s reel
+    - cron: '30 6 * * 6'    # Sat 06:30 UTC = Sat 07:30 BST  → 21s reel
+    - cron: '0 9 * * 0'     # Sun 09:00 UTC = Sun 10:00 BST  → portrait
+    - cron: '0 9 * * 4'     # Thu 09:00 UTC = Thu 10:00 BST  → portrait
+    # Sports — add entries here when channel launches
+    # Cartoon — add entries here when channel launches
+
+concurrency:
+  group: generate-${{ github.event.inputs.channel || 'wild-eye' }}
+  cancel-in-progress: false  # never kill a mid-generation run
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout reel-pipeline
+        uses: actions/checkout@v4
+
+      - name: Checkout signal-studio (private)
+        uses: actions/checkout@v4
+        with:
+          repository: jayampathiw/signal-studio
+          ssh-key: ${{ secrets.SIGNAL_STUDIO_DEPLOY_KEY }}
+          path: content
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install global CLIs
+        run: npm install -g @anthropic-ai/claude-code @higgsfield/cli
+
+      - name: Install Higgsfield Tier 1 skills into the signal-studio checkout
+        working-directory: content
+        # Must run inside the checkout claude --print uses, so higgsfield:generate
+        # is discoverable alongside the Tier 2/3 skills in content/.claude/skills.
+        run: npx skills add higgsfield-ai/skills
+
+      - name: Restore Higgsfield auth token
+        run: |
+          mkdir -p ~/.higgsfield
+          echo '${{ secrets.HIGGSFIELD_AUTH_TOKEN }}' > ~/.higgsfield/credentials
+          chmod 600 ~/.higgsfield/credentials
+
+      - name: Determine channel
+        id: channel
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "slug=${{ github.event.inputs.channel }}" >> $GITHUB_OUTPUT
+          else
+            # Map schedule → channel slug
+            case "${{ github.event.schedule }}" in
+              "0 22 * * 5" | "30 6 * * 6" | "0 9 * * 0" | "0 9 * * 4")
+                echo "slug=wild-eye" >> $GITHUB_OUTPUT
+                ;;
+              *)
+                echo "slug=wild-eye" >> $GITHUB_OUTPUT
+                ;;
+            esac
+          fi
+
+      - name: Run generation
+        working-directory: content
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SUPABASE_MCP_TOKEN: ${{ secrets.SUPABASE_MCP_TOKEN }}
+          CHANNEL: ${{ steps.channel.outputs.slug }}
+          CONTENT_ID: ${{ github.event.inputs.content_id }}
+        run: bash ../scripts/runner.sh
