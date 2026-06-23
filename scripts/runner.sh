@@ -10,6 +10,24 @@ set -euo pipefail
 CHANNEL="${CHANNEL:-wild-eye}"
 CONTENT_ID="${CONTENT_ID:-}"
 
+# ── Resolve channel slug → channel_key + skill name ───────────────────────────
+# channel-slugs.js is the single source of truth. Inline the resolution here via
+# Node so the bash script doesn't have to duplicate the map.
+read -r CHANNEL_KEY SKILL_NAME <<< "$(node -e "
+  import('file:///\$GITHUB_WORKSPACE/content/apps/video/src/config/channel-slugs.js').then(m => {
+    const r = m.resolveChannelSlug('${CHANNEL}');
+    process.stdout.write(r.channelKey + ' ' + r.skill + '\n');
+  }).catch(e => { process.stderr.write(e.message + '\n'); process.exit(1); });
+" 2>&1)" || {
+  echo "ERROR: Unknown channel slug '${CHANNEL}'. Add it to apps/video/src/config/channel-slugs.js." >&2
+  exit 1
+}
+
+echo "Channel slug : ${CHANNEL}"
+echo "Channel key  : ${CHANNEL_KEY}"
+echo "Skill        : ${SKILL_NAME}"
+echo ""
+
 # ── Higgsfield auth smoke check ───────────────────────────────────────────────
 # Fail fast if the Higgsfield CLI token is missing/expired, BEFORE spending any
 # Claude tokens. higgsfield-credit-guard re-checks the balance later; this only
@@ -22,9 +40,9 @@ fi
 echo ""
 
 if [ -n "$CONTENT_ID" ]; then
-  PROMPT="Run the ${CHANNEL}-reel skill for content_items.id=${CONTENT_ID}."
+  PROMPT="Run the ${SKILL_NAME} skill for content_items.id=${CONTENT_ID}."
 else
-  PROMPT="Run the ${CHANNEL}-reel skill for the oldest status='brief' row in channel ${CHANNEL}."
+  PROMPT="Run the ${SKILL_NAME} skill for the oldest status='brief' row with channel_key='${CHANNEL_KEY}'."
 fi
 
 echo "=== Signal Studio Cloud Agent ==="
