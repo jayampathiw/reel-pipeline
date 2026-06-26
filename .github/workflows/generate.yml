@@ -84,6 +84,10 @@ jobs:
         working-directory: content
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Forward proxy routing so the claude CLI authenticates against the
+          # configured Anthropic-compatible endpoint (unset = direct api.anthropic.com).
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
           SUPABASE_MCP_TOKEN: ${{ secrets.SUPABASE_MCP_TOKEN }}
           CHANNEL: ${{ steps.channel.outputs.slug }}
           CONTENT_ID: ${{ github.event.inputs.content_id }}

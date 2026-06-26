@@ -14,7 +14,7 @@ CONTENT_ID="${CONTENT_ID:-}"
 # channel-slugs.js is the single source of truth. Inline the resolution here via
 # Node so the bash script doesn't have to duplicate the map.
 read -r CHANNEL_KEY SKILL_NAME <<< "$(node -e "
-  import('file:///\$GITHUB_WORKSPACE/content/apps/video/src/config/channel-slugs.js').then(m => {
+  import('file://$GITHUB_WORKSPACE/content/apps/video/src/config/channel-slugs.js').then(m => {
     const r = m.resolveChannelSlug('${CHANNEL}');
     process.stdout.write(r.channelKey + ' ' + r.skill + '\n');
   }).catch(e => { process.stderr.write(e.message + '\n'); process.exit(1); });
