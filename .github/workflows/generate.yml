@@ -58,10 +58,13 @@ jobs:
         run: npx skills add higgsfield-ai/skills
 
       - name: Restore Higgsfield auth token
+        # CLI v0.2.x reads ~/.config/higgsfield/credentials.json (JSON with
+        # access_token + refresh_token), NOT ~/.higgsfield/credentials.
+        # The secret holds the full credentials.json contents verbatim.
         run: |
-          mkdir -p ~/.higgsfield
-          echo '${{ secrets.HIGGSFIELD_AUTH_TOKEN }}' > ~/.higgsfield/credentials
-          chmod 600 ~/.higgsfield/credentials
+          mkdir -p ~/.config/higgsfield
+          echo '${{ secrets.HIGGSFIELD_AUTH_TOKEN }}' > ~/.config/higgsfield/credentials.json
+          chmod 600 ~/.config/higgsfield/credentials.json
 
       - name: Determine channel
         id: channel
