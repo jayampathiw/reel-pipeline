@@ -51,6 +51,26 @@ echo "Content : ${CONTENT_ID:-<oldest brief>}"
 echo "Prompt  : $PROMPT"
 echo ""
 
+# ── Trust the workspace so project skills + settings load ─────────────────────
+# --dangerously-skip-permissions bypasses tool-approval prompts but does NOT mark
+# the workspace trusted. Without trust, Claude Code ignores .claude/settings AND
+# never loads the project skills — so `claude --print "Run wild-eye-reel..."` finds
+# no such skill and silently no-ops (exactly what killed the #25 run). Pre-seed the
+# per-project trust flag in ~/.claude.json (the path the CLI actually checks). CWD
+# here is the signal-studio checkout, so $(pwd) is the project key the CLI uses.
+PROJECT_DIR="$(pwd)"
+node -e "
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const file = path.join(os.homedir(), '.claude.json');
+  let cfg = {};
+  try { cfg = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {}
+  cfg.projects = cfg.projects || {};
+  cfg.projects['$PROJECT_DIR'] = { ...(cfg.projects['$PROJECT_DIR'] || {}), hasTrustDialogAccepted: true };
+  fs.writeFileSync(file, JSON.stringify(cfg, null, 2));
+  process.stdout.write('Trusted workspace: $PROJECT_DIR\n');
+"
+echo ""
+
 # --mcp-config: the cloud run needs ONLY the Supabase MCP server. The repo's own
 #   .mcp.json also declares github/filesystem/etc. servers that point at a local
 #   docker socket and a developer home path — neither exists on the runner — so we
