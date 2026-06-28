@@ -28,13 +28,39 @@ echo "Channel key  : ${CHANNEL_KEY}"
 echo "Skill        : ${SKILL_NAME}"
 echo ""
 
-# ── Higgsfield auth smoke check ───────────────────────────────────────────────
-# Fail fast if the Higgsfield CLI token is missing/expired, BEFORE spending any
-# Claude tokens. higgsfield-credit-guard re-checks the balance later; this only
-# proves the credentials restored from HIGGSFIELD_AUTH_TOKEN actually work.
-echo "=== Higgsfield auth smoke check ==="
-if ! higgsfield account balance; then
-  echo "ERROR: Higgsfield CLI auth failed — check the HIGGSFIELD_AUTH_TOKEN secret / ~/.higgsfield/credentials." >&2
+# ── Higgsfield network + auth smoke check ─────────────────────────────────────
+# Two-stage check so we can give a precise error message:
+#   Stage 1 — raw network probe: can this runner reach api.higgsfield.ai at all?
+#             Any HTTP response (even 4xx) means the server is up.
+#             000 = connection failed; 521 = Cloudflare can't reach the origin.
+#   Stage 2 — CLI auth check: `higgsfield account status` makes a real
+#             authenticated API call. Fails if the token is missing or expired.
+# This replaces the old `higgsfield account balance` call which was not a valid
+# subcommand and silently printed help text instead of checking anything.
+echo "=== Higgsfield network + auth smoke check ==="
+
+HTTP_STATUS="$(curl -s -o /dev/null -w '%{http_code}' \
+  --max-time 10 --connect-timeout 5 \
+  "https://api.higgsfield.ai/" 2>/dev/null || echo 000)"
+
+case "$HTTP_STATUS" in
+  000)
+    echo "ERROR: Cannot reach api.higgsfield.ai from this runner (connection failed)." >&2
+    echo "       This is a runner network issue — re-dispatch when the route is open." >&2
+    exit 1
+    ;;
+  521)
+    echo "ERROR: api.higgsfield.ai returned HTTP 521 (Cloudflare — origin server down)." >&2
+    echo "       This is a Higgsfield-side outage — re-dispatch later." >&2
+    exit 1
+    ;;
+  *)
+    echo "Network OK (HTTP ${HTTP_STATUS} from api.higgsfield.ai)"
+    ;;
+esac
+
+if ! higgsfield account status; then
+  echo "ERROR: Higgsfield CLI auth failed — HIGGSFIELD_AUTH_TOKEN secret may be expired." >&2
   exit 1
 fi
 echo ""
