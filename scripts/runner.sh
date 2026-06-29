@@ -59,8 +59,25 @@ case "$HTTP_STATUS" in
     ;;
 esac
 
-if ! higgsfield account status; then
-  echo "ERROR: Higgsfield CLI auth failed — HIGGSFIELD_AUTH_TOKEN secret may be expired." >&2
+# Auto-select workspace — credentials.json restores tokens but not workspace state.
+# `higgsfield account status` exits non-zero if no workspace is selected, even when
+# credentials are valid. Select the first available workspace before the status check.
+echo "Selecting Higgsfield workspace..."
+HF_WS_LIST=$(higgsfield workspace list 2>&1 || true)
+echo "$HF_WS_LIST"
+HF_WS_ID=$(printf '%s\n' "$HF_WS_LIST" \
+  | awk 'NF && !/[Ww]orkspace|[Nn]ame|^[-=]+|^$/ { print $1; exit }')
+if [ -n "$HF_WS_ID" ]; then
+  echo "Selecting workspace: $HF_WS_ID"
+  higgsfield workspace set "$HF_WS_ID"
+else
+  echo "WARNING: Could not parse workspace ID — generation may fail." >&2
+fi
+echo ""
+
+if ! higgsfield account status 2>&1; then
+  echo "ERROR: Higgsfield CLI auth check failed." >&2
+  echo "       Check that HIGGSFIELD_AUTH_TOKEN is current and workspace was selected above." >&2
   exit 1
 fi
 echo ""
