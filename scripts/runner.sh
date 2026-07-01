@@ -65,8 +65,11 @@ esac
 echo "Selecting Higgsfield workspace..."
 HF_WS_LIST=$(higgsfield workspace list 2>&1 || true)
 echo "$HF_WS_LIST"
+# Match the first line whose first field looks like a UUID (8-4-4-4-12 hex).
+# Avoids falsely picking up the header row ("ID NAME PLAN ...") which the old
+# [Nn]ame filter missed because the CLI prints headers in ALL CAPS.
 HF_WS_ID=$(printf '%s\n' "$HF_WS_LIST" \
-  | awk 'NF && !/[Ww]orkspace|[Nn]ame|^[-=]+|^$/ { print $1; exit }')
+  | awk '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/ { print $1; exit }')
 if [ -n "$HF_WS_ID" ]; then
   echo "Selecting workspace: $HF_WS_ID"
   higgsfield workspace set "$HF_WS_ID"
