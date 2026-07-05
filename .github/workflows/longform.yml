@@ -40,6 +40,11 @@ on:
           - tts
           - assemble
           - publish
+      signal_studio_ref:
+        description: 'signal-studio branch/tag to check out'
+        required: false
+        default: 'feat/longform-v2'
+        type: string
 
 jobs:
   run:
@@ -55,6 +60,7 @@ jobs:
         with:
           repository: jayampathiw/signal-studio
           ssh-key: ${{ secrets.SIGNAL_STUDIO_DEPLOY_KEY }}
+          ref: ${{ inputs.signal_studio_ref || 'feat/longform-v2' }}
           path: signal-studio
 
       - name: Setup Node.js
