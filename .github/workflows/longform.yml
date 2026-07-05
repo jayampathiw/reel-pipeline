@@ -68,22 +68,16 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-          run_install: false
-
-      - name: Cache pnpm store
+      - name: Cache npm store
         uses: actions/cache@v4
         with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('signal-studio/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('signal-studio/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-npm-
 
       - name: Install dependencies
         working-directory: signal-studio
-        run: pnpm install --no-frozen-lockfile
+        run: npm ci
 
       - name: Install ffmpeg
         run: sudo apt-get install -y ffmpeg
