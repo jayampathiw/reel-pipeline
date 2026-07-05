@@ -83,7 +83,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: signal-studio
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Install ffmpeg
         run: sudo apt-get install -y ffmpeg
