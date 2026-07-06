@@ -130,7 +130,12 @@ jobs:
               node scripts/set-status.mjs --project "$PROJECT_ID" --status awaiting_refs --note "tts regeneration complete"
               ;;
             assemble)
+              # F6-2: pre-flight guard — all stills + refs must be passed
+              node apps/video/scripts/longform/preflight-assemble.mjs --project "$PROJECT_ID"
+              # Render + audio mix + upload to R2 → sets status=rendered on success
               node apps/video/scripts/longform/assemble-longform.mjs --project "$PROJECT_ID"
+              node scripts/set-status.mjs --project "$PROJECT_ID" --status awaiting_final_approval \
+                --note "assembly complete — run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
               ;;
             publish)
               node apps/video/scripts/longform/publish-longform.mjs --project "$PROJECT_ID"
