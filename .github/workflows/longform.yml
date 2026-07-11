@@ -39,11 +39,17 @@ on:
           - seed
           - tts
           - assemble
+          - tts_assemble
           - publish
       signal_studio_ref:
         description: 'signal-studio branch/tag to check out'
         required: false
         default: 'feat/longform-v2'
+        type: string
+      assemble_flags:
+        description: 'Extra flags for assemble-longform.mjs (e.g. --no-audio-mix --no-overlays)'
+        required: false
+        default: ''
         type: string
 
 jobs:
@@ -132,10 +138,18 @@ jobs:
             assemble)
               # F6-2: pre-flight guard — all stills + refs must be passed
               node apps/video/scripts/longform/preflight-assemble.mjs --project "$PROJECT_ID"
-              # Render + audio mix + upload to R2 → sets status=rendered on success
-              node apps/video/scripts/longform/assemble-longform.mjs --project "$PROJECT_ID"
+              # Render + upload to R2 → sets status=rendered on success
+              node apps/video/scripts/longform/assemble-longform.mjs --project "$PROJECT_ID" ${{ inputs.assemble_flags }}
               node scripts/set-status.mjs --project "$PROJECT_ID" --status awaiting_final_approval \
                 --note "assembly complete — run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+              ;;
+            tts_assemble)
+              # Generate narration audio for all clips, then immediately re-assemble
+              node apps/video/scripts/longform/generate-tts.mjs --project "$PROJECT_ID" --report
+              node apps/video/scripts/longform/preflight-assemble.mjs --project "$PROJECT_ID"
+              node apps/video/scripts/longform/assemble-longform.mjs --project "$PROJECT_ID" ${{ inputs.assemble_flags }}
+              node scripts/set-status.mjs --project "$PROJECT_ID" --status awaiting_final_approval \
+                --note "tts + assembly complete — run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
               ;;
             publish)
               node apps/video/scripts/longform/publish-longform.mjs --project "$PROJECT_ID"
