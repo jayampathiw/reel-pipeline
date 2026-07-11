@@ -44,7 +44,7 @@ on:
       signal_studio_ref:
         description: 'signal-studio branch/tag to check out'
         required: false
-        default: 'feat/longform-v2'
+        default: 'main'
         type: string
       assemble_flags:
         description: 'Extra flags for assemble-longform.mjs (e.g. --no-audio-mix --no-overlays)'
@@ -66,7 +66,7 @@ jobs:
         with:
           repository: jayampathiw/signal-studio
           ssh-key: ${{ secrets.SIGNAL_STUDIO_DEPLOY_KEY }}
-          ref: ${{ inputs.signal_studio_ref || 'feat/longform-v2' }}
+          ref: ${{ inputs.signal_studio_ref || 'main' }}
           path: signal-studio
 
       - name: Setup Node.js
@@ -95,7 +95,7 @@ jobs:
           key: kokoro-model-v1
 
       - name: Install Kokoro TTS
-        run: pip install kokoro-onnx soundfile numpy --quiet
+        run: pip3 install kokoro-onnx soundfile numpy --quiet && python3 -c "import kokoro; print('kokoro ok')"
 
       - name: Run stage — ${{ inputs.stage }}
         working-directory: signal-studio
